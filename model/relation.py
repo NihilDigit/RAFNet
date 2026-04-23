@@ -25,6 +25,38 @@ class relation(relation_head):
             update_config(cfg, config_file)
             self.backbone = HighResolutionNet(cfg)
 
+    def extract_relation_features(self, data):
+        """Extract relation-aware 1024D features without running regression heads.
+
+        RAFNet-specific fast path: bypasses pose/shape/camera regression and SMPL
+        forward when only the intermediate relation embedding is needed for
+        downstream classification. Output is the same 1024D representation as the
+        ``past_encoder`` output in the original ``forward`` path.
+        """
+        batch_size, agent_num = data['img'].shape[:2]
+        valid = data['valid'].reshape(-1,)
+
+        features = torch.zeros((batch_size * agent_num, 2048), device=data['img'].device, dtype=data['img'].dtype)
+        valid_imgs = data['img'].reshape(batch_size * agent_num, 3, 256, 192)[valid == 1]
+        features[valid == 1] = self.backbone(valid_imgs)
+
+        center = data['center'].reshape(batch_size * agent_num, -1)
+        scale = data['scale'].reshape(batch_size * agent_num,)
+        img_h = data['img_h'].reshape(batch_size * agent_num,)
+        img_w = data['img_w'].reshape(batch_size * agent_num,)
+        focal_length = data['focal_length'].reshape(batch_size * agent_num,)
+
+        cx, cy, b = center[:, 0], center[:, 1], scale * 200
+        bbox_info = torch.stack([cx - img_w / 2., cy - img_h / 2., b], dim=-1)
+        bbox_info[:, :2] = bbox_info[:, :2] / focal_length.unsqueeze(-1) * 2.8
+        bbox_info[:, 2] = (bbox_info[:, 2] - 0.24 * focal_length) / (0.06 * focal_length)
+
+        aff_features = torch.cat([features, bbox_info], 1)
+        inputs = self.project(aff_features)
+
+        relation_features = self.past_encoder(inputs, batch_size, agent_num, valid)
+        return relation_features
+
     def forward(self, data):
         batch_size, agent_num = data['img'].shape[:2]
         valid = data['valid'].reshape(-1,)

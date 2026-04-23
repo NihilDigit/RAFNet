@@ -1,0 +1,137 @@
+[workspace]
+authors = ["NihilDigit <nihildigit@outlook.com>"]
+channels = ["conda-forge"]
+name = "RAFNet"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[system-requirements]
+cuda = "11.1"
+
+# =============================================================================
+# Tasks — run with `pixi run <task>`. Any extra args are forwarded to the
+# underlying command: e.g. `pixi run train --model convnext_only_loss_tuned --seed 43`.
+# List all tasks with `pixi task list`.
+# =============================================================================
+
+[tasks.smoke]
+description = "Quick sanity check: import RAFNet modules, build paper models, verify param counts."
+cmd = """
+python -c "
+import sys; sys.path.insert(0, '.')
+from prism.models import MODELS
+from prism.utils.config import load_config
+import torch
+for cfg_name, expected in [
+    ('grouprec_convnext_gated_c_spatial_graph_loss_tuned', 1.253),
+    ('grouprec_convnext_gated_loss_tuned', 0.728),
+    ('convnext_only_loss_tuned', 0.332),
+]:
+    cfg = load_config(f'prism/configs/{cfg_name}.yaml')
+    model = MODELS.build(cfg['model']['name'], **cfg['model']['params'])
+    n = sum(p.numel() for p in model.parameters()) / 1e6
+    print(f'  {cfg_name}: {n:.3f}M (expected {expected})')
+print('Smoke OK')
+"
+"""
+
+[tasks.train]
+description = "Train a single fusion head. Example: pixi run train --model grouprec_convnext_gated_c_spatial_graph_loss_tuned --seed 43"
+cmd = "python prism/scripts/train.py"
+
+[tasks.eval]
+description = "Evaluate all trained models (multi-seed aggregation)."
+cmd = "python prism/scripts/evaluate.py"
+
+[tasks.repro-main]
+description = "Reproduce Table 1 main subset (6 models × 5 seeds, ~30 trainings)."
+cmd = "bash prism/scripts/run_repro_main.sh"
+
+[tasks.repro]
+description = "Full reproduction (10 models × 5 seeds, includes C+Spatial and 3D variants)."
+cmd = "bash prism/scripts/run_repro.sh"
+
+[tasks.baselines]
+description = "Run external baseline suite (LogReg / Linear SVM / Late fusion / LMF)."
+cmd = "bash prism/scripts/run_external_baselines_suite.sh"
+
+[tasks.tier2]
+description = "Per-class, confusion matrix, efficiency diagnostics for the 3 main models."
+cmd = "bash prism/scripts/run_tier2_bundle.sh"
+
+[tasks.demo]
+description = "RAFNet Quick Run demo — side-by-side comparison (GT / ConvNeXt-only / RAFNet) on bundled sample images."
+cmd = "python prism/scripts/demo.py"
+
+[tasks.figures]
+description = "Regenerate the paper Fig 4 qualitative comparison (high-res PDF, full NCST test set)."
+cmd = "python prism/scripts/qualitative_results.py"
+
+# End-to-end tasks (require `pixi shell -e e2e` or `pixi run -e e2e <task>`)
+[feature.e2e.tasks.extract]
+description = "Extract GroupRec relation + ConvNeXt features for NCST. Needs SMPL / GroupRec weights in data/. See README for weight setup."
+cmd = "python prism/scripts/extract_features.py --data-root data/datasets/ncst_classroom --images-dir data/datasets/ncst_classroom/images --modalities grouprec convnext --batch-size 1"
+
+[feature.e2e.tasks.extract-3d]
+description = "Extract GroupRec-3D output features (pose/joint-based variant)."
+cmd = "python prism/scripts/extract_grouprec3d_features.py"
+
+# =============================================================================
+# Quick Run (default environment)
+#
+# Enough to: load cached features (pkl), train / evaluate RAFNet fusion heads,
+# run the qualitative demo on pre-extracted samples.
+# Does NOT include SMPL / 3D rendering / detection dependencies.
+# =============================================================================
+
+[dependencies]
+python = "3.8.*"
+pip = ">=24.3.1,<25"
+pytorch-gpu = "2.1.*"
+torchvision = "*"
+numpy = "*"
+scikit-learn = "*"
+matplotlib = "*"
+seaborn = ">=0.13.2,<0.14"
+tqdm = "*"
+yaml = ">=0.2.5,<0.3"
+pyyaml = "*"
+pillow = "*"
+opencv = "*"
+timm = ">=1.0.11,<2"
+
+[pypi-dependencies]
+imageio = "==2.31.1"
+
+# =============================================================================
+# End-to-End feature (optional)
+#
+# Activate with:  pixi shell -e e2e     or     pixi run -e e2e <command>
+#
+# Adds: SMPL loading (via chumpy), 3D rendering, YOLOX detection, mesh utils.
+# Required only for running the full pipeline on new (non-cached) images.
+# chumpy must be installed separately after env creation; see README.
+# =============================================================================
+
+[feature.e2e.dependencies]
+mayavi = ">=4.8.2,<5"
+apptools = ">=5.1.0,<6"
+pycocotools = ">=2.0.7,<3"
+vtk = ">=9.3.0,<10"
+xgboost = ">=2.1.1,<3"
+
+[feature.e2e.pypi-dependencies]
+trimesh = "==3.22.3"
+open3d = "==0.17.0"
+pyrender = "==0.1.45"
+easydict = "==1.10"
+yacs = "==0.1.8"
+freetype-py = "==2.4.0"
+pyopengl = "==3.1.0"
+pyglet = "==2.0.8"
+thop = "==0.1.1.post2209072238"
+scipy = "==1.10.1"
+
+[environments]
+default = { solve-group = "default" }
+e2e = { features = ["e2e"], solve-group = "e2e" }

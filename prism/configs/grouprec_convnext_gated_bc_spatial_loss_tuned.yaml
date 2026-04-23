@@ -1,0 +1,85 @@
+training:
+    seeds:
+        - 43
+    num_epochs: 100
+    batch_size: 128
+    grad_clip: 1.0
+    label_names:
+        - Bowing Head
+        - Listening
+        - Reading/Writing
+        - "Null"
+        - Using Phone
+    output_dir: results/training/grouprec_convnext_gated_bc_spatial_loss_tuned
+
+optimizer:
+    name: adamw
+    params:
+        lr: 0.001
+        weight_decay: 0.001
+
+loss:
+    name: focal
+    params:
+        num_classes: 5
+        gamma: 1.5
+        label_smoothing: 0.1
+
+class_weights:
+    method: log_balanced
+    null_weight_factor: 0.1
+
+scheduler:
+    name: reduce_on_plateau
+    params:
+        mode: max
+        factor: 0.5
+        patience: 10
+
+model:
+    name: disentangled_spatial_graph_fusion_classifier
+    params:
+        num_classes: 5
+        hidden_dim: 256
+        dropout: 0.3
+        gate_dropout: 0.1
+        entropy_weight: 0.01
+        gate_temperature: 1.0
+        gate_hidden_dim: 128
+        relation_modality: grouprec
+        appearance_modality: convnext
+        spatial_modality: bbox_ctx
+        image_id_modality: img_uid
+        graph_k: 8
+        graph_alpha: 0.5
+        graph_dropout: 0.1
+        disentangle_ortho_weight: 0.02
+        disentangle_align_weight: 0.01
+        align_detach_appearance: true
+        modalities: &id001
+            - grouprec
+            - convnext
+            - bbox_ctx
+            - img_uid
+        input_dims:
+            - 1024
+            - 1024
+            - 4
+            - 1
+
+datasets:
+    train:
+        name: multimodal_features
+        params:
+            features_path: output/prism_features/latest/train_features_with_context.pkl
+            modalities: *id001
+    val:
+        name: multimodal_features
+        params:
+            features_path: output/prism_features/latest/val_features_with_context.pkl
+            modalities: *id001
+    test:
+        name: multimodal_features
+        params:
+            features_path: output/prism_features/latest/test_features_with_context.pkl
+            modalities: *id001

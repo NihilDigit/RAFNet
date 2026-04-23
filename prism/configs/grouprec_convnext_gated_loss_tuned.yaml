@@ -1,0 +1,70 @@
+training:
+    seeds:
+        - 43
+    num_epochs: 100
+    batch_size: 128
+    grad_clip: 1.0
+    label_names:
+        - Bowing Head
+        - Listening
+        - Reading/Writing
+        - "Null"
+        - Using Phone
+    output_dir: results/training/grouprec_convnext_gated_loss_tuned
+
+optimizer:
+    name: adamw
+    params:
+        lr: 0.001
+        weight_decay: 0.001
+
+loss:
+    name: focal
+    params:
+        num_classes: 5
+        gamma: 1.5
+        label_smoothing: 0.1
+
+class_weights:
+    method: log_balanced
+    null_weight_factor: 0.1
+
+scheduler:
+    name: reduce_on_plateau
+    params:
+        mode: max
+        factor: 0.5
+        patience: 10
+
+model:
+    name: gated_fusion_classifier
+    params:
+        num_classes: 5
+        hidden_dim: 256
+        dropout: 0.3
+        gate_dropout: 0.1
+        entropy_weight: 0.01
+        gate_temperature: 1.0
+        modalities: &id001
+            - grouprec
+            - convnext
+        input_dims:
+            - 1024
+            - 1024
+
+datasets:
+    train:
+        name: multimodal_features
+        params:
+            features_path: output/prism_features/latest/train_features.pkl
+            modalities: *id001
+    val:
+        name: multimodal_features
+        params:
+            features_path: output/prism_features/latest/val_features.pkl
+            modalities: *id001
+    test:
+        name: multimodal_features
+        params:
+            features_path: output/prism_features/latest/test_features.pkl
+            modalities: *id001
