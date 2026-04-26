@@ -1,12 +1,14 @@
-# RAFNet
+# RAFNet: Relation-Aware Adaptive Fusion Network for Dense Classroom Student Behavior Recognition
 
-**A Relation-Aware Adaptive Fusion Network for Dense Classroom Student Behavior Recognition**
+This repository provides the official implementation of RAFNet, which is directly associated with our manuscript submitted to *The Visual Computer*.
+
+If you find this code useful for your research, please consider citing our related manuscript.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org/downloads/release/python-380/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.1-red.svg)](https://pytorch.org/)
 
-This repository contains the implementation code for the paper *RAFNet: A Relation-Aware Adaptive Fusion Network for Dense Classroom Student Behavior Recognition* (Xia et al., 2026). The code extends [GroupRec (ICCV 2023)](https://github.com/boycehbz/GroupRec): upstream code is preserved without functional modification, and RAFNet is added as a parallel self-contained module.
+This repository contains the implementation code for the paper *RAFNet: A Relation-Aware Adaptive Fusion Network for Dense Classroom Student Behavior Recognition* (Xia et al., 2026).
 
 > **Note on naming.** The internal Python package is `prism/` — RAFNet's development codename. The paper refers to the method as RAFNet; both names refer to the same model.
 
