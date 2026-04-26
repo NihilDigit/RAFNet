@@ -2,9 +2,44 @@ from __future__ import print_function, absolute_import
 import numpy as np
 import pickle
 import torch
+import warnings
 from torch.nn import Module
 import os
 from time import time
+
+# ---------------------------------------------------------------------------
+# NumPy>=1.24 compatibility shim for chumpy 0.70.
+#
+# ``SMPL_NEUTRAL.pkl`` is pickled with ``chumpy.Ch`` objects, so ``pickle.load``
+# indirectly triggers ``import chumpy``. chumpy 0.70 (the only PyPI version)
+# does at its module top:
+#
+#     from numpy import bool, int, float, complex, object, unicode, str, nan, inf
+#
+# These aliases were deprecated in NumPy 1.20 and **removed in NumPy 1.24**,
+# so the import fails on any modern environment. We restore the missing
+# attributes here *before* chumpy is imported. This block must stay at
+# module level (executed on ``import SMPLModel``) because any consumer of SMPL
+# first imports this module, guaranteeing the patch runs before pickle.load.
+# Moving it into ``__init__`` or a helper function will break the import order.
+# ---------------------------------------------------------------------------
+_DEPRECATED_NUMPY_ALIASES = {
+    "bool": np.bool_,
+    "int": int,
+    "float": float,
+    "complex": complex,
+    "object": np.object_,
+    "str": str,
+    "unicode": np.unicode_,
+}
+# NumPy 1.23 still emits ``FutureWarning`` when these attributes are probed via
+# ``hasattr``; suppress locally so the shim stays quiet.
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", FutureWarning)
+    for _alias, _target in _DEPRECATED_NUMPY_ALIASES.items():
+        if not hasattr(np, _alias):
+            setattr(np, _alias, _target)
+
 
 class SMPLModel(Module):
     def __init__(self, device=None, model_path='./SMPL_NEUTRAL.pkl',
